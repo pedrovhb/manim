@@ -3,6 +3,9 @@ import random
 import warnings
 import platform
 
+import zlib
+import re
+
 from tqdm import tqdm as ProgressDisplay
 import numpy as np
 
@@ -812,6 +815,25 @@ class Scene(Container):
             # get applied to all animations
             animation.update_config(**kwargs)
 
+        self.animhash=zlib.crc32(
+            bytes(
+                re.sub(r'at (.*)>', 'mempos', str(animations)).encode("ascii") +
+                str(
+                    {re.sub(r'at (.*)>', 'mempos',str(mobject)) : mobject.get_center() for mobject in self.mobjects}
+                    ).encode("ascii")
+                )
+            )
+        if os.path.exists(
+            os.path.join(
+                self.file_writer.partial_movie_directory,
+                "{}{}".format(self.animhash, self.file_writer.movie_file_extension)
+                )
+            ):
+            self.file_writer.play_hash_dict[self.num_plays]=os.path.join(
+                self.file_writer.partial_movie_directory,
+                "{}{}".format(self.animhash, self.file_writer.movie_file_extension)
+                )
+            animations=[] #Empty the animations so nothing is rendered.
         return animations
 
     def update_skipping_status(self):
@@ -830,6 +852,8 @@ class Scene(Container):
             if self.num_plays >= self.end_at_animation_number:
                 self.skip_animations = True
                 raise EndSceneEarlyException()
+        if self.num_plays==len(self.file_writer.play_hash_dict)-1:
+            self.skip_animations=True
 
     def handle_play_like_call(func):
         """
@@ -852,6 +876,9 @@ class Scene(Container):
             to the video file stream.
         """
         def wrapper(self, *args, **kwargs):
+            animations = self.compile_play_args_to_animation_list(
+                *args, **kwargs
+            ) #This has been added here in order to update the hash as soon as viable.
             self.update_skipping_status()
             allow_write = not self.skip_animations
             self.file_writer.begin_animation(allow_write)
@@ -950,9 +977,12 @@ class Scene(Container):
         animations = self.compile_play_args_to_animation_list(
             *args, **kwargs
         )
-        self.begin_animations(animations)
-        self.progress_through_animations(animations)
-        self.finish_animations(animations)
+        if animations==[]:
+            pass
+        else:
+            self.begin_animations(animations)
+            self.progress_through_animations(animations)
+            self.finish_animations(animations)
 
     def idle_stream(self):
         """

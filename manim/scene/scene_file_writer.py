@@ -58,6 +58,7 @@ class SceneFileWriter(object):
         self.init_output_directories()
         self.init_audio()
         self.frame_count = 0
+        self.play_hash_dict={} #This Dictionary stores the hashes next to the num_play of that call.
 
     # Output directories and files
     def init_output_directories(self):
@@ -198,13 +199,23 @@ class SceneFileWriter(object):
         str
             The path of the next partial movie.
         """
+        #The old result has been commented out.
+        # result = os.path.join(
+        #     self.partial_movie_directory,
+        #     "{:05}{}".format(
+        #         self.scene.num_plays,
+        #         self.movie_file_extension,
+        #     )
+        # )
+        # The new result directory is below.
         result = os.path.join(
             self.partial_movie_directory,
-            "{:05}{}".format(
-                self.scene.num_plays,
+            "{}{}".format(
+                self.scene.animhash,
                 self.movie_file_extension,
             )
         )
+        self.play_hash_dict[self.scene.num_plays]=result
         return result
 
     def get_movie_file_path(self):
@@ -467,11 +478,17 @@ class SceneFileWriter(object):
         if self.scene.end_at_animation_number is not None:
             kwargs["max_index"] = self.scene.end_at_animation_number
         else:
-            kwargs["remove_indices_greater_than"] = self.scene.num_plays - 1
-        partial_movie_files = get_sorted_integer_files(
-            self.partial_movie_directory,
-            **kwargs
-        )
+            pass # kwargs["remove_indices_greater_than"] = self.scene.num_plays - 1
+        # partial_movie_files = get_sorted_integer_files(
+        #     self.partial_movie_directory,
+        #     **kwargs
+        # )
+
+        #get_sorted_integer_files is not being used anymore. The paths are directly taken from play_hash_dict
+        partial_movie_files=[]
+        for k in sorted(list(self.play_hash_dict.keys())):
+            print(self.play_hash_dict[k])
+            partial_movie_files.append(self.play_hash_dict[k])
         if len(partial_movie_files) == 0:
             print("No animations in this scene")
             return
