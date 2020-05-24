@@ -99,10 +99,24 @@ class ImageMobject(AbstractImageMobject):
         return self
 
     def interpolate_color(self, mobject1, mobject2, alpha):
-        assert(mobject1.pixel_array.shape == mobject2.pixel_array.shape)
+        # todo (pedrovhb) - contribute change. This might not be straightforward
+        # due to resizing of the images.
+        if not mobject1.pixel_array.shape == mobject2.pixel_array.shape:
+            self._pad_images_to_same_size(mobject1, mobject2)
+
         self.pixel_array = interpolate(
             mobject1.pixel_array, mobject2.pixel_array, alpha
         ).astype(self.pixel_array_dtype)
+
+    def _pad_images_to_same_size(self, mobject1, mobject2):
+        dimensions = (0, 1)  # width, height
+        for dimension in dimensions:
+            dim_key = lambda m: m.pixel_array.shape[dimension]
+            min_dim, max_dim = sorted([mobject1, mobject2], key=dim_key)
+            dim_diff = max_dim.pixel_array.shape[dimension] - min_dim.pixel_array.shape[dimension]
+            pad = [(0, 0), (0, 0), (0, 0)]
+            pad[dimension] = (0, dim_diff)
+            min_dim.pixel_array = np.pad(min_dim.pixel_array, pad)
 
 # TODO, add the ability to have the dimensions/orientation of this
 # mobject more strongly tied to the frame of the camera it contains,
